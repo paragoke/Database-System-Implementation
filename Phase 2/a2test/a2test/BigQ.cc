@@ -1,5 +1,8 @@
 #include "BigQ.h"
 #include <algorithm>
+#include <queue>
+#include <string>
+#include <map>
 /*bool BigQ::sort_func(Record &one,Record& two, OrderMaker &sortorder){
 
 	ComparisonEngine compare;
@@ -51,6 +54,32 @@ void BigQ::quicksort(vector<Record> &rb, int left, int right,OrderMaker &sortord
 }  
 
 */
+
+class CompareRecord{
+	
+	private:
+	
+	ComparisionEngine ce;
+	OrderMaker* om;
+	
+	public:
+
+	CompareRecord(OrderMaker &sortorder){
+		om = sortorder;
+	
+	}
+	
+	 boolean operator(Record &r1, Record $r2)
+	{
+		if(ce.Compare(r1,r2,&om))return true;
+		return false;
+	}
+
+
+}
+
+
+
 
 void* BigQ::TPMMS_Phase1(void* arg){
 	/*
@@ -216,7 +245,59 @@ void* BigQ::TPMMS_Phase1(void* arg){
 	}
 	cout << "Closing last file";	
 //WARNING	args->run_buffer->at(*(args->num_runs))->Close();
-	 
+
+
+
+
+	cout<<"Started run merging";
+
+	priority_queue<Record,vector<Record>,CompareRecord> pq;
+
+	int numruns1 = *(args->num_runs);
+	
+	DBFile dbf[] = new DBFile[numruns1];
+	Page p1[] = new Page[numruns1]; // required ? as buffer
+	typdef std::map<Record,int> from_where;	
+	from_where fw;
+	
+	DBFile dboutput = new DBFile();
+	dboutput.create(path,heap,null);
+
+
+	int i=0;
+	Record* temp1;
+	Record* t3;
+	string run_name = "run";
+	while(numruns1!=0){ // intiallly populates the first records from all the runs
+
+		// open all the files 
+		dbf[i] = new DBFile();
+		string this_run_name = run_name + std::to_string(i);
+		dbf[i].open(this_run_name);
+		// is the first page loaded intp main memory
+		dbf[i].MoveFirst();
+		dbf[i].GetNext(&temp1);
+		fw.insert(from_where(temp1,i));
+		pq.push(temp1);
+		
+	}
+
+	while(!pq.empty()){	
+
+		Record* t2= pq.top();
+		std::int run_index = fw[t2];
+		dboutput.add(&t2);	
+		pq.pop();
+		if(dbf[run_index].GetNext(&t3))
+			pq.push(t3);	
+		else{
+			dbf[run_index].close();
+
+
+		}
+
+	}
+ 	dboutput.close();
 }
 
 
